@@ -1,4 +1,7 @@
 import requests
+from datetime import datetime
+import telebot
+from auth_data import token
 
 
 def get_info():
@@ -13,7 +16,6 @@ def get_info():
 
 def get_ticker(coin1="btc", coin2="usd"):
     """Возвращает данные о выбранных парах"""
-    # coin1 = str(input("Введите название: "))
     response = requests.get(url=f"https://yobit.net/api/3/ticker/{coin1}_{coin2}?ignore_invalid=1")
     with open("ticker.txt", "w") as file:
         file.write(response.text)
@@ -56,12 +58,43 @@ def get_trades(coin1="btc", coin2="usd", limit=150):
         else:
             total_trade_bid += item["price"] * item["amount"]
 
-    info = f"[-] TOTAL {coin1} SELL: {round(total_trade_ask, 2)} $\n[+] TOTAL {coin1} BUY: {round(total_trade_bid, 2)} $"
+    info = f"[-] TOTAL {coin1} SELL: {round(total_trade_ask, 2)} $\n[+] TOTAL {coin1} BUY: {round(total_trade_bid, 2)}$"
 
     return info
 
 
+def telegram_bot(token):
+    bot = telebot.TeleBot(token)
+
+    @bot.message_handler(commands=["start"])
+    def start_message(message):
+        bot.send_message(message.chat.id, "Hello friend! Write the 'price' to find out the cost of BTC!")
+
+    @bot.message_handler(content_types=["text"])
+    def send_text(message, coin='eth'):
+        if message.text.lower() == "price":
+            try:
+                req = requests.get(url=f"https://yobit.net/api/3/ticker/{coin}_usd")
+                response = req.json()
+                sell_price = response[f"{coin}_usd"]["sell"]
+                bot.send_message(
+                    message.chat.id,
+                    f"{datetime.now().strftime('%d.%m.%Y %H:%M')}\nSell {coin} price: {sell_price}"
+                )
+            except Exception as ex:
+                print(ex)
+                bot.send_message(
+                    message.chat.id,
+                    "Damn...Something was wrong..."
+                )
+        else:
+            bot.send_message(message.chat.id, "invalid command")
+
+    bot.polling()
+
+
 def main():
+    pass
     # print(get_info())
     # print(get_ticker())
     # print(get_ticker(coin1='eth'))
@@ -71,4 +104,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    telegram_bot(token)
